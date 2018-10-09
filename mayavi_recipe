@@ -1,0 +1,50 @@
+Bootstrap: docker
+
+From: intelpython/intelpython3_core
+
+%help
+  - run with: singularity run mayavi.simg <script.py>
+  - update only one section (e.g. runscript):
+    sudo singularity build --section runscript mayavi.simg mayavi_recipe
+    otherwise without --section
+  - writable images / sandboxes, --writable commands and build need sudo, execution with run not necessarily
+  - if run with sudo, it mounts host:/root/ to container:/root, if as user, mounts e.g. host:/home/user to container:/home/user, and similarly with $PWD
+
+%post
+  echo "deb http://deb.debian.org/debian stretch-backports main contrib non-free" >> /etc/apt/sources.list
+  apt-get update
+  apt-get -y install cmake cmake-curses-gui autoconf bison flex zlib1g-dev libexpat1-dev llvm-6.0-dev pkg-config python-mako libnetcdf-dev libgdal-dev
+  ln -s /usr/bin/llvm-config-6.0 /usr/bin/llvm-config
+  cd && wget https://mesa.freedesktop.org/archive/mesa-18.2.1.tar.gz
+  tar -xf mesa-18.2.1.tar.gz && cd mesa-18.2.1
+  CXXFLAGS=-fpermissive ./configure --enable-opengl --disable-gles1 --disable-gles2 --disable-va --disable-xvmc --disable-vdpau --enable-shared-glapi --enable-llvm --with-gallium-drivers=swrast,swr --disable-dri --with-dri-drivers= --disable-egl --with-platforms= --disable-gbm --disable-glx --enable-gallium-osmesa --with-osmesa-bits=32
+  make && make install
+
+  . /opt/conda/etc/profile.d/conda.sh
+  conda create -n mayavi python=3
+  conda activate mayavi
+  conda install -c intel numpy xarray cftime
+
+  cd && wget https://www.vtk.org/files/release/8.1/VTK-8.1.1.tar.gz
+  tar -xf VTK-8.1.1.tar.gz && mkdir VTK && cd VTK
+  cmake -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release -DVTK_OPENGL_HAS_OSMESA=ON -DVTK_PYTHON_VERSION=3 -DVTK_WRAP_PYTHON=ON -DVTK_USE_X=OFF -DVTK_USE_SYSTEM_HDF5=ON -DVTK_USE_SYSTEM_LIBPROJ4=ON -DVTK_USE_SYSTEM_NETCDF=ON -DVTK_INSTALL_PYTHON_MODULE_DIR=/opt/conda/envs/mayavi/lib/python3.6/site-packages/ -DLIBPROJ4_INCLUDE_DIR=/usr/include/ -DLIBPROJ4_LIBRARIES=/usr/lib/x86_64-linux-gnu/libproj.so -DVTK_DEFAULT_RENDER_WINDOW_OFFSCREEN=ON ../VTK-8.1.1
+
+  cd && wget https://github.com/Unidata/netcdf4-python/archive/v1.4.1rel.tar.gz
+  tar -xf v1.4.1rel.tar.gz && cd v1.4.1rel && python setup.py install
+
+  cd && wget https://github.com/jswhit/pyproj/archive/v1.9.5.1rel.tar.gz
+  tar -xf v1.9.5.1rel.tar.gz && cd v1.9.5.1rel && python setup.py install
+  
+  cd && git clone https://github.com/enthought/mayavi.git
+  cd mayavi && git checkout 4.6.2 && sed -i '/vtk/d' mayavi/__init__.py && python setup.py install
+
+  conda install -c conda-forge requests wrf-python moviepy --yes
+  python -c "from moviepy.editor import VideoClip"
+
+%environment
+  export LD_LIBRARY_PATH=/usr/local/lib
+
+%runscript
+  . /opt/conda/etc/profile.d/conda.sh
+  conda activate mayavi
+  xvfb-run -s '-screen 0 1280x1024x24' mayavi2 -x $* -o
