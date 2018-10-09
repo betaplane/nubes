@@ -1,34 +1,41 @@
+"""
+Utility routines
+================
+
+.. NOTE::
+    * Currently projection is hard-coded to 'lcc' (could also be read from netcdf file)
+
+"""
 #!/usr/bin/env python
 import os
-from traitlets.config import Application, Config
-from traitlets.config.loader import PyFileConfigLoader, ConfigFileNotFound
-from traitlets import Unicode, Integer
 from importlib import import_module
 import numpy as np
 import xarray as xr
 from netCDF4 import Dataset
 from warnings import catch_warnings, simplefilter
+
+# hack for GDAL framework installation on MacOS
 # import sys
 # sys.path.insert(0, '/usr/local/lib/python3.6/site-packages/GDAL-2.1.3-py3.6-macosx-10.12-x86_64.egg/')
 # import gdal
 
-# for image textures:
-# http://geoexamples.blogspot.com/2014/02/3d-terrain-visualization-with-python.html
 
-class Surface(Application):
-    config_file = Unicode('./config.py').tag(config=True)
-    wrf_file = Unicode().tag(config=True)
+class Tools(object):
+    """Class that holds a few methods to create the static files needed for the visualization::
 
-    def __init__(self, config={}, **kwargs):
-        try:
-            cfg = PyFileConfigLoader(os.path.abspath(self.config_file)).load_config()
-            cfg.merge(config)
-        except ConfigFileNotFound:
-            cfg = Config(config)
-        super().__init__(config=cfg, **kwargs)
+        * :meth:`.dem` - to produce a DEM cropped (and optionally decimated) to the region corresponding to a WRF domain
+        * :meth:`.image` - to produce an image (currently, a `Blue Marble`_ image) cropped to the WRF domain which is used as a texture for the DEM
 
-    def initialize(self):
-        self.nc = Dataset(self.wrf_file)
+    :param wrf_file: name of the WRF output netCDF4_ file (``wrfout_...``) from which to take the (cloud) data (will be accessible as :attr:`.nc`)
+    :type wrf_file: :obj:`str`
+
+    .. attribute:: nc
+
+        input netCDF4_ WRF file containing the variables (e.g. ``CLDFRA``) to be visualized.
+
+    """
+    def __init__(self, wrf_file):
+        self.nc = Dataset(wrf_file)
         X, Y = self.nc['XLONG'][0, : ,:], self.nc['XLAT'][0, :, :]
         self.affine = self.create_affine(X, Y)
         self.xbnds = X.min(), X.max()
@@ -40,6 +47,8 @@ class Surface(Application):
         except: pass
 
     def proj(self):
+        """Return projection parameters for the ``wrfout_...`` file (:attr:.nc).
+        """
         pyproj = import_module('pyproj')
         return pyproj.Proj(
             lon_0 = self.nc.CEN_LON,
@@ -50,6 +59,15 @@ class Surface(Application):
         )
 
     def create_affine(self, x, y):
+        """Return a function that maps the geographical coordinates (latitude and longitude) of input data (e.g. the ``wrfout_...`` file or the input DEM) to a Cartesian grid spanned by integer index vectors (e.g. as returned by a call to :meth:`numpy.mgrid`). The returnd function is to be called as ``func(x, y)`` where ``x`` and ``y`` correspond to :class:`arrays <numpy.ndarray>` of longitudes and latitudes.
+
+        :param x: array of longitudes
+        :type x: :class:`~numpy.ndarray`
+        :param y: array of latitudes
+        :type y: :class:`~numpy.ndarray`
+        :returns: function that performs an affine mapping from geographic to integer-gridded coordinates
+        :rtype: :obj:`callable`
+        """
         proj = self.proj()
         x, y = proj(x, y)
         m, n = x.shape
@@ -67,9 +85,17 @@ class Surface(Application):
 
         return to_grid
 
-    def dem(self, dem_path, decimate=1):
+    def dem(self, file_path, decimate=12):
+        """Return a netCDF4_ file containing a DEM cropped to the region corresponding to the input netCDF4_ WRF file (argument ``wrf_file`` to :class:`Tools` and :attr:`.nc`), and optionally downsampled.
+
+        :param file_path: path to the input DEM file (in geotiff format, e.g. from the SRTM_)
+        :param decimate: decimation factor for the resulting DEM (e.g. if ``12``, the resulting resolution is 1/12th of the original)
+        :returns: cropped and optionally decimated DEM, with elevation as variable ``z`` and the affine-mapped coordinates (see :meth:`.create_affine` in variables ``x`` and ``y``, respectively)
+        :rtype: :class:`xarray.DataArray`
+
+        """
         gdal = import_module('gdal')
-        ds = gdal.Open(dem_path)
+        ds = gdal.Open(file_path)
         g = ds.GetGeoTransform()
         b = ds.GetRasterBand(1)
         z = b.ReadAsArray()
@@ -97,7 +123,17 @@ class Surface(Application):
             'y': (('lat', 'lon'), y.reshape(Z.shape))
         })
 
-    def image(self, im_path):
+    def image(self, file_path):
+        """Return an image cropped to the region corresponding to the input netCDF4_ WRF file (argument ``wrf_file`` to :class:`Tools` and :attr:`.nc`). This function currently assumes that the image is a `Blue Marble`_ region ``B2`` image - this is important because these images are not geotiffs and I map the pixel coordinates based on the boundary of the ``B2`` region.
+
+        :param file_path: file path to the original image
+        :returns: cropped image
+        :rtype: :class:`PIL.Image.Image`
+
+        .. NOTE::
+
+            The image needs, potentially, to be rotated and flipped (90 deg CCW and flipped horizontally) before applying it as texture.
+        """
         Image = import_module('PIL.Image')
         Image.MAX_IMAGE_PIXELS = None
         im = Image.open(im_path)
@@ -106,32 +142,27 @@ class Surface(Application):
         return im.crop(np.hstack((np.floor(i[0, :]), np.ceil(i[1, :]))))
 
 
-class Visualization(Surface):
-    dem_file = Unicode('dem_d03_12.nc').tag(config=True)
-    "name of DEM file (in netcdf fornat, as produced by :meth:`dem`)"
+class Visualize(Tools):
+    """Class that sets up an interactive Mayavi_ visualization - at this points of clouds, using volume rendering.
 
-    image_file = Unicode('marble_d03_rot.jpg').tag(config=True)
-    "name of image (extension .jpg or .png) to use as texture over the DEM"
+    Usage::
 
-    var_name = Unicode('CLDFRA').tag(config=True)
-    "name of variable to use for volume rendering"
+        v = Visualize(<wrfout_file>)
+        v.anim()
+        v.show()
 
-    movie_file = Unicode('out.mp4').tag(config=True)
-    "name of the movie file to be written out (extension .mp4 or .gif)"
+    :param wrf_file: path to a WRF output netCDF4_ file whose data is to be visualized
+    :param var_name: name of the variable to be visualized as a volume density (e.g. ``CLDFRA``)
+    :param dem_file: path to a DEM in netCDF4_ format which represents the terrain, as produced by :meth:`.dem`
+    :param image_file: path to an image file which is used as texture on the rendered DEM.
 
-    fps = Integer(1).tag(config=True)
-    "frame rate of the movie file to be written out"
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-    def initialize(self, offscreen=False):
-        super().initialize()
+    """
+    def __init__(self, wrf_file, var_name='CLDFRA', dem_file='dem_d03_12.nc', image_file='marble_d03_rot.jpg'):
+        super().__init__(wrf_file)
         tvtk = import_module('tvtk.api')
         self.mlab = import_module('mayavi.mlab')
-        self.mlab.options.offscreen = offscreen
 
-        ds = xr.open_dataset(self.dem_file)
+        ds = xr.open_dataset(dem_file)
 
         # here I 'fill' the DEM westward with zeros (over the ocean)
         dx = ds.lon.diff('lon').mean().item()
@@ -141,8 +172,8 @@ class Visualization(Surface):
         self.z = self.project_xarray(Z)
 
         # get the texture from image (extensions either 'jpg' or 'png')
-        reader = {'.jpg': tvtk.tvtk.JPEGReader, '.png': tvtk.tvtk.PNGReader}[os.path.splitext(self.image_file)[1]]
-        im = reader(file_name = self.image_file)
+        reader = {'.jpg': tvtk.tvtk.JPEGReader, '.png': tvtk.tvtk.PNGReader}[os.path.splitext(image_file)[1]]
+        im = reader(file_name = image_file)
         self.tex = tvtk.tvtk.Texture(input_connection = im.output_port, interpolate = 1)
 
         self.fig = self.mlab.figure(size=(800, 800))
@@ -163,39 +194,33 @@ class Visualization(Surface):
         @self.mlab.animate
         def anim():
             for i in range(self.nt):
-                self.anim_func(i)
+                self.anim_func(i, var_name)
                 yield
 
         self.anim = anim
+        self.show = self.mlab.show
 
-    def anim_func(self, i):
+    def anim_func(self, i, var_name):
         wrf = import_module('wrf')
         iz = np.arange(0, 10, .05)
         if self.vol is not None:
             self.vol.remove()
-        cld = wrf.vinterp(self.nc, wrf.getvar(self.nc, self.var_name, timeidx=int(i)), 'ght_msl', iz)
+        cld = wrf.vinterp(self.nc, wrf.getvar(self.nc, var_name, timeidx=int(i)), 'ght_msl', iz)
         xyzc = self.xyz + [cld.values.transpose(2, 1, 0)]
         self.vol = self.mlab.pipeline.volume(self.mlab.pipeline.scalar_field(*xyzc), color=(1, 1, 1), figure=self.fig)
-        return self.mlab.screenshot(antialiased=True)
 
-    def write_movie(self):
+    def write_movie(self, var_name='CLDFRA', file_name='mov.mp4', fps=6):
+        """Write a movie file to disk, based on the interactive animation set up by this class.
+
+        :param var_name: name of the variable to be visualized as a volume density (e.g. ``CLDFRA``)
+        :param file_name: path to the output (movie) file to be produced
+        :param fps: frames per second
+
+        """
+        def anim(i):
+            self.anim_func(i * fps, var_name)
+            return self.mlab.screenshot(antialiased=True)
         mp = import_module('moviepy.editor')
-        vc = mp.VideoClip(self.anim_func, duration=self.nt / self.fps)
-        writer = {'.mp4': 'write_videofile', '.gif': 'write_gif'}[os.path.splitext(self.movie_file)[1]]
-        getattr(vc, writer)(self.movie_file, fps=self.fps)
-
-    def start(self):
-        # http://docs.enthought.com/mayavi/mayavi/auto/example_offscreen.html
-        from mayavi.api import OffScreenEngine
-        from mayavi.tools.sources import scalar_field
-        from mayavi.modules.api import Volume
-        eng = OffScreenEngine()
-        scene = eng.new_scene()
-        eng.add_source(scalar_field())
-
-if __name__ == '__main__':
-    app = Visualization(surface=True)
-    app.parse_command_line()
-    app.initialize(offscreen=True)
-    app.anim_func(0)
-    app.mlab.savefig('test.png')
+        vc = mp.VideoClip(anim, duration=self.nt / fps)
+        writer = {'.mp4': 'write_videofile', '.gif': 'write_gif'}[os.path.splitext(file_name)[1]]
+        getattr(vc, writer)(file_name, fps=fps)

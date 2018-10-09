@@ -83,7 +83,18 @@
             
               <p class="caption"><span class="caption-text">Contents:</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Cloud visualization with Mayavi</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Cloud visualization with Mayavi</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#dependencies">Dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#building-singularity">Building Singularity</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#utility-routines">Utility routines</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#links">Links</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#issues-and-bug-workarounds">Issues and bug workarounds</a></li>
+</ul>
+</li>
+</ul>
+</li>
 </ul>
 
             
@@ -148,8 +159,254 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="module-core">
-<span id="cloud-visualization-with-mayavi"></span><h1>Cloud visualization with Mayavi<a class="headerlink" href="#module-core" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="cloud-visualization-with-mayavi">
+<h1>Cloud visualization with Mayavi<a class="headerlink" href="#cloud-visualization-with-mayavi" title="Permalink to this headline">¶</a></h1>
+<p>This package contains an object-oriented, interactive version of a cloud visualization with <a class="reference external" href="http://docs.enthought.com/mayavi/mayavi/index.html">Mayavi</a>, in the <a class="reference internal" href="#module-core" title="core"><code class="xref py py-mod docutils literal"><span class="pre">core</span></code></a> module, and a script version (file <code class="docutils literal"><span class="pre">script.py</span></code>) which doesn’t import anything from <em>this</em> module. On a computer with display and graphics drivers, the script version can be run (provided the <a class="reference internal" href="#dependencies">dependencies</a> are installed) as follows:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">wrf_file</span><span class="o">=&lt;</span><span class="n">input_wrfout_file</span><span class="o">&gt;</span> <span class="n">mayavi2</span> <span class="o">-</span><span class="n">x</span> <span class="n">script</span><span class="o">.</span><span class="n">py</span> <span class="o">-</span><span class="n">o</span>
+</pre></div>
+</div>
+<p>where <code class="docutils literal"><span class="pre">&lt;input_wrfout_file&gt;</span></code> is to be replaced by the WRF output file on which to base the visualization. This will intermittently create a sequence of images files named <code class="docutils literal"><span class="pre">scene_xxx.png</span></code> where <code class="docutils literal"><span class="pre">xxx</span></code> is a 3-digit number indicating the order of each file in the sequence. This files will be deleted once a movie has been created from them via <a class="reference external" href="http://zulko.github.io/moviepy/">MoviePy</a>.</p>
+<p>For portability and completely <strong>offcreen</strong> rendering, I have created a <a class="reference external" href="https://www.sylabs.io/singularity/">Singularity</a> image which can be used in the following way - assuming, of course, that <a class="reference external" href="https://www.sylabs.io/singularity/">Singularity</a> is installed:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">singularity</span> <span class="n">run</span> <span class="n">mayavi2</span><span class="o">.</span><span class="n">img</span> <span class="n">script</span><span class="o">.</span><span class="n">py</span> <span class="o">&lt;</span><span class="n">input_wrfout_file</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<p>with <code class="docutils literal"><span class="pre">&lt;input_wrfout_file&gt;</span></code> to be replaced as above.</p>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">The file specified as <code class="docutils literal"><span class="pre">&lt;input_wrfout_file&gt;</span></code> (as well as <code class="docutils literal"><span class="pre">script.py</span></code>) has to be <a class="reference external" href="https://www.sylabs.io/guides/2.6/user-guide/quick_start.html#working-with-files">reachable from within the singularity container</a>. In the case of <code class="docutils literal"><span class="pre">script.py</span></code>, this is going to be the case if <a class="reference external" href="https://www.sylabs.io/singularity/">Singularity</a> is run wihtout <code class="docutils literal"><span class="pre">sudo</span></code> and it lives somewhere in the user directory tree.</p>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p>I have currently two <a class="reference external" href="https://www.sylabs.io/singularity/">Singularity</a> images, <code class="docutils literal"><span class="pre">mayavi.img</span></code> and <code class="docutils literal"><span class="pre">mayavi2.img</span></code> (both squashed), where the second one contains all the additional sections (runscript, environment, help) and the first the actual OS and installations.</p>
+<p class="last">Inside the image, which is based on the intelpython/intelpython3_core docker image, there is a <a class="reference external" href="https://conda.io/docs/">Conda</a> environment called <code class="docutils literal"><span class="pre">mayavi</span></code> that contains all the necessary python modules.</p>
+</div>
+<div class="section" id="dependencies">
+<h2>Dependencies<a class="headerlink" href="#dependencies" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><a class="reference external" href="http://docs.enthought.com/mayavi/mayavi/index.html">Mayavi</a></li>
+<li>numpy</li>
+<li>xarray</li>
+<li>wrf-python</li>
+<li>pyproj</li>
+<li><a class="reference external" href="http://unidata.github.io/netcdf4-python/">netCDF4</a></li>
+<li><a class="reference external" href="http://zulko.github.io/moviepy/">MoviePy</a></li>
+</ul>
+</div>
+<div class="section" id="building-singularity">
+<h2>Building Singularity<a class="headerlink" href="#building-singularity" title="Permalink to this headline">¶</a></h2>
+<p>If squashed images are desired, there is one dependency: <a class="reference external" href="http://squashfs.sourceforge.net/">squashfs</a>, which at the time of this writing is simply built with the Makefile in <code class="docutils literal"><span class="pre">squashfs-tools/</span></code>. (There was one other dependency I don’t remember, maybe <a class="reference external" href="https://www.libarchive.org/">libarchive</a>.) With the source from github:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">clone</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">sylabs</span><span class="o">/</span><span class="n">singularity</span><span class="o">.</span><span class="n">git</span>
+</pre></div>
+</div>
+<p>my configure line on <code class="docutils literal"><span class="pre">diaguita</span></code> was:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">CPPFLAGS</span><span class="o">=</span><span class="s2">&quot;-I/HPC/arno/dia/gcc/include/&quot;</span> <span class="n">LDFLAGS</span><span class="o">=</span><span class="s2">&quot;-L/HPC/arno/dia/gcc/lib&quot;</span> <span class="n">LD_LIBRARY_PATH</span><span class="o">=/</span><span class="n">HPC</span><span class="o">/</span><span class="n">arno</span><span class="o">/</span><span class="n">dia</span><span class="o">/</span><span class="n">gcc</span><span class="o">/</span><span class="n">lib</span> <span class="o">./</span><span class="n">configure</span> <span class="o">--</span><span class="n">prefix</span><span class="o">=/</span><span class="n">HPC</span><span class="o">/</span><span class="n">arno</span><span class="o">/</span><span class="n">dia</span><span class="o">/</span><span class="n">gcc</span><span class="o">/</span> <span class="o">--</span><span class="n">sysconfdir</span><span class="o">=/</span><span class="n">HPC</span><span class="o">/</span><span class="n">arno</span><span class="o">/</span><span class="n">dia</span><span class="o">/</span><span class="n">gcc</span><span class="o">/</span><span class="n">etc</span><span class="o">/</span> <span class="o">--</span><span class="k">with</span><span class="o">-</span><span class="n">mksquashfs</span><span class="o">=/</span><span class="n">HPC</span><span class="o">/</span><span class="n">arno</span><span class="o">/</span><span class="n">dia</span><span class="o">/</span><span class="n">gcc</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">mksquashfs</span>
+</pre></div>
+</div>
+<span class="target" id="module-core"></span><div class="section" id="utility-routines">
+<h3>Utility routines<a class="headerlink" href="#utility-routines" title="Permalink to this headline">¶</a></h3>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<ul class="last simple">
+<li>Currently projection is hard-coded to ‘lcc’ (could also be read from netcdf file)</li>
+</ul>
+</div>
+<dl class="class">
+<dt id="core.Tools">
+<em class="property">class </em><code class="descclassname">core.</code><code class="descname">Tools</code><span class="sig-paren">(</span><em>wrf_file</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/core.html#Tools"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#core.Tools" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class that holds a few methods to create the static files needed for the visualization:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>* :meth:`.dem` - to produce a DEM cropped (and optionally decimated) to the region corresponding to a WRF domain
+* :meth:`.image` - to produce an image (currently, a `Blue Marble`_ image) cropped to the WRF domain which is used as a texture for the DEM
+</pre></div>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>wrf_file</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><code class="xref py py-obj docutils literal"><span class="pre">str</span></code></a>) – name of the WRF output <a class="reference external" href="http://unidata.github.io/netcdf4-python/">netCDF4</a> file (<code class="docutils literal"><span class="pre">wrfout_...</span></code>) from which to take the (cloud) data (will be accessible as <a class="reference internal" href="#core.Tools.nc" title="core.Tools.nc"><code class="xref py py-attr docutils literal"><span class="pre">nc</span></code></a>)</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="core.Tools.nc">
+<code class="descname">nc</code><a class="headerlink" href="#core.Tools.nc" title="Permalink to this definition">¶</a></dt>
+<dd><p>input <a class="reference external" href="http://unidata.github.io/netcdf4-python/">netCDF4</a> WRF file containing the variables (e.g. <code class="docutils literal"><span class="pre">CLDFRA</span></code>) to be visualized.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="core.Tools.create_affine">
+<code class="descname">create_affine</code><span class="sig-paren">(</span><em>x</em>, <em>y</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/core.html#Tools.create_affine"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#core.Tools.create_affine" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a function that maps the geographical coordinates (latitude and longitude) of input data (e.g. the <code class="docutils literal"><span class="pre">wrfout_...</span></code> file or the input DEM) to a Cartesian grid spanned by integer index vectors (e.g. as returned by a call to <code class="xref py py-meth docutils literal"><span class="pre">numpy.mgrid()</span></code>). The returnd function is to be called as <code class="docutils literal"><span class="pre">func(x,</span> <span class="pre">y)</span></code> where <code class="docutils literal"><span class="pre">x</span></code> and <code class="docutils literal"><span class="pre">y</span></code> correspond to <a class="reference external" href="https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.15)"><code class="xref py py-class docutils literal"><span class="pre">arrays</span></code></a> of longitudes and latitudes.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>x</strong> (<a class="reference external" href="https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.15)"><code class="xref py py-class docutils literal"><span class="pre">ndarray</span></code></a>) – array of longitudes</li>
+<li><strong>y</strong> (<a class="reference external" href="https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.15)"><code class="xref py py-class docutils literal"><span class="pre">ndarray</span></code></a>) – array of latitudes</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">function that performs an affine mapping from geographic to integer-gridded coordinates</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last"><a class="reference external" href="https://docs.python.org/3/library/functions.html#callable" title="(in Python v3.7)"><code class="xref py py-obj docutils literal"><span class="pre">callable</span></code></a></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="core.Tools.dem">
+<code class="descname">dem</code><span class="sig-paren">(</span><em>file_path</em>, <em>decimate=12</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/core.html#Tools.dem"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#core.Tools.dem" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a <a class="reference external" href="http://unidata.github.io/netcdf4-python/">netCDF4</a> file containing a DEM cropped to the region corresponding to the input <a class="reference external" href="http://unidata.github.io/netcdf4-python/">netCDF4</a> WRF file (argument <code class="docutils literal"><span class="pre">wrf_file</span></code> to <a class="reference internal" href="#core.Tools" title="core.Tools"><code class="xref py py-class docutils literal"><span class="pre">Tools</span></code></a> and <a class="reference internal" href="#core.Tools.nc" title="core.Tools.nc"><code class="xref py py-attr docutils literal"><span class="pre">nc</span></code></a>), and optionally downsampled.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>file_path</strong> – path to the input DEM file (in geotiff format, e.g. from the <a class="reference external" href="https://www2.jpl.nasa.gov/srtm/">SRTM</a>)</li>
+<li><strong>decimate</strong> – decimation factor for the resulting DEM (e.g. if <code class="docutils literal"><span class="pre">12</span></code>, the resulting resolution is 1/12th of the original)</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">cropped and optionally decimated DEM, with elevation as variable <code class="docutils literal"><span class="pre">z</span></code> and the affine-mapped coordinates (see <a class="reference internal" href="#core.Tools.create_affine" title="core.Tools.create_affine"><code class="xref py py-meth docutils literal"><span class="pre">create_affine()</span></code></a> in variables <code class="docutils literal"><span class="pre">x</span></code> and <code class="docutils literal"><span class="pre">y</span></code>, respectively)</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last"><a class="reference external" href="http://xarray.pydata.org/en/stable/generated/xarray.DataArray.html#xarray.DataArray" title="(in xarray v0.10.9)"><code class="xref py py-class docutils literal"><span class="pre">xarray.DataArray</span></code></a></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="core.Tools.image">
+<code class="descname">image</code><span class="sig-paren">(</span><em>file_path</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/core.html#Tools.image"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#core.Tools.image" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return an image cropped to the region corresponding to the input <a class="reference external" href="http://unidata.github.io/netcdf4-python/">netCDF4</a> WRF file (argument <code class="docutils literal"><span class="pre">wrf_file</span></code> to <a class="reference internal" href="#core.Tools" title="core.Tools"><code class="xref py py-class docutils literal"><span class="pre">Tools</span></code></a> and <a class="reference internal" href="#core.Tools.nc" title="core.Tools.nc"><code class="xref py py-attr docutils literal"><span class="pre">nc</span></code></a>). This function currently assumes that the image is a <a class="reference external" href="https://visibleearth.nasa.gov/view_cat.php?categoryID=1484">Blue Marble</a> region <code class="docutils literal"><span class="pre">B2</span></code> image - this is important because these images are not geotiffs and I map the pixel coordinates based on the boundary of the <code class="docutils literal"><span class="pre">B2</span></code> region.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>file_path</strong> – file path to the original image</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">cropped image</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://pillow.readthedocs.io/en/latest/reference/Image.html#PIL.Image.Image" title="(in Pillow (PIL Fork) v5.4.0.dev0)"><code class="xref py py-class docutils literal"><span class="pre">PIL.Image.Image</span></code></a></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">The image needs, potentially, to be rotated and flipped (90 deg CCW and flipped horizontally) before applying it as texture.</p>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="core.Tools.proj">
+<code class="descname">proj</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/core.html#Tools.proj"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#core.Tools.proj" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return projection parameters for the <code class="docutils literal"><span class="pre">wrfout_...</span></code> file (:attr:.nc).</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="core.Visualize">
+<em class="property">class </em><code class="descclassname">core.</code><code class="descname">Visualize</code><span class="sig-paren">(</span><em>wrf_file</em>, <em>var_name='CLDFRA'</em>, <em>dem_file='dem_d03_12.nc'</em>, <em>image_file='marble_d03_rot.jpg'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/core.html#Visualize"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#core.Visualize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class that sets up an interactive <a class="reference external" href="http://docs.enthought.com/mayavi/mayavi/index.html">Mayavi</a> visualization - at this points of clouds, using volume rendering.</p>
+<p>Usage:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">v</span> <span class="o">=</span> <span class="n">Visualize</span><span class="p">(</span><span class="o">&lt;</span><span class="n">wrfout_file</span><span class="o">&gt;</span><span class="p">)</span>
+<span class="n">v</span><span class="o">.</span><span class="n">anim</span><span class="p">()</span>
+<span class="n">v</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>wrf_file</strong> – path to a WRF output <a class="reference external" href="http://unidata.github.io/netcdf4-python/">netCDF4</a> file whose data is to be visualized</li>
+<li><strong>var_name</strong> – name of the variable to be visualized as a volume density (e.g. <code class="docutils literal"><span class="pre">CLDFRA</span></code>)</li>
+<li><strong>dem_file</strong> – path to a DEM in <a class="reference external" href="http://unidata.github.io/netcdf4-python/">netCDF4</a> format which represents the terrain, as produced by <a class="reference internal" href="#core.Tools.dem" title="core.Tools.dem"><code class="xref py py-meth docutils literal"><span class="pre">dem()</span></code></a></li>
+<li><strong>image_file</strong> – path to an image file which is used as texture on the rendered DEM.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="core.Visualize.write_movie">
+<code class="descname">write_movie</code><span class="sig-paren">(</span><em>var_name='CLDFRA'</em>, <em>file_name='mov.mp4'</em>, <em>fps=6</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/core.html#Visualize.write_movie"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#core.Visualize.write_movie" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write a movie file to disk, based on the interactive animation set up by this class.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>var_name</strong> – name of the variable to be visualized as a volume density (e.g. <code class="docutils literal"><span class="pre">CLDFRA</span></code>)</li>
+<li><strong>file_name</strong> – path to the output (movie) file to be produced</li>
+<li><strong>fps</strong> – frames per second</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+<div class="section" id="links">
+<h2>Links<a class="headerlink" href="#links" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><a class="reference external" href="http://geoexamples.blogspot.com/2014/02/3d-terrain-visualization-with-python.html">image textures</a></li>
+</ul>
+<div class="section" id="issues-and-bug-workarounds">
+<h3>Issues and bug workarounds<a class="headerlink" href="#issues-and-bug-workarounds" title="Permalink to this headline">¶</a></h3>
+<ul>
+<li><p class="first"><a class="reference external" href="https://github.com/enthought/mayavi/issues/7">failure to illuminate rendered volume (i.e. clouds) before user interacts with the window</a></p>
+<ul>
+<li><p class="first">a possible workaround in case this becomes relevant (it seems not to affect the ‘scripted’ animation:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">tvtk.pyface.ui.qt4</span> <span class="k">import</span> <span class="n">scene</span>
+<span class="kn">from</span> <span class="nn">tvtk.pyface.ui.qt4.QVTKRenderWindowInteractor</span> <span class="k">import</span> <span class="n">QVTKRenderWindowInteractor</span>
+
+<span class="k">class</span> <span class="nc">tvtkBug</span><span class="p">(</span><span class="n">scene</span><span class="o">.</span><span class="n">_VTKRenderWindowInteractor</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">paintEvent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">e</span><span class="p">):</span>
+    <span class="n">QVTKRenderWindowInteractor</span><span class="o">.</span><span class="n">paintEvent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+    <span class="n">scene</span><span class="o">.</span><span class="n">_VTKRenderWindowInteractor</span> <span class="o">=</span> <span class="n">tvtkBug</span>
+
+<span class="n">scene</span><span class="o">.</span><span class="n">_VTKRenderWindowInteractor</span> <span class="o">=</span> <span class="n">tvtkBug</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</li>
+<li><p class="first">main <a class="reference external" href="https://www.vtk.org/">VTK</a> bug resulting in the error message (and possibly a seg fault):</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">ERROR</span><span class="p">:</span> <span class="n">In</span> <span class="o">/</span><span class="n">root</span><span class="o">/</span><span class="n">VTK</span><span class="o">-</span><span class="mf">8.1</span><span class="o">.</span><span class="mi">1</span><span class="o">/</span><span class="n">Rendering</span><span class="o">/</span><span class="n">OpenGL2</span><span class="o">/</span><span class="n">vtkOpenGLRenderWindow</span><span class="o">.</span><span class="n">cxx</span><span class="p">,</span> <span class="n">line</span> <span class="mi">797</span>
+<span class="n">vtkOSOpenGLRenderWindow</span> <span class="p">(</span><span class="mh">0x562b86863710</span><span class="p">):</span> <span class="n">GL</span> <span class="n">version</span> <span class="mf">2.1</span> <span class="k">with</span> <span class="n">the</span> <span class="n">gpu_shader4</span> <span class="n">extension</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">supported</span> <span class="n">by</span> <span class="n">your</span> <span class="n">graphics</span> <span class="n">driver</span> <span class="n">but</span> <span class="ow">is</span> <span class="n">required</span> <span class="k">for</span> <span class="n">the</span> <span class="n">new</span> <span class="n">OpenGL</span> <span class="n">rendering</span> <span class="n">backend</span><span class="o">.</span> <span class="n">Please</span> <span class="n">update</span> <span class="n">your</span> <span class="n">OpenGL</span> <span class="n">driver</span><span class="o">.</span> <span class="n">If</span> <span class="n">you</span> <span class="n">are</span> <span class="n">using</span> <span class="n">Mesa</span> <span class="n">please</span> <span class="n">make</span> <span class="n">sure</span> <span class="n">you</span> <span class="n">have</span> <span class="n">version</span> <span class="mf">10.6</span><span class="o">.</span><span class="mi">5</span> <span class="ow">or</span> <span class="n">later</span> <span class="ow">and</span> <span class="n">make</span> <span class="n">sure</span> <span class="n">your</span> <span class="n">driver</span> <span class="ow">in</span> <span class="n">Mesa</span> <span class="n">supports</span> <span class="n">OpenGL</span> <span class="mf">3.2</span><span class="o">.</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><a class="reference external" href="https://www.vtk.org/pipermail/vtk-developers/2017-November/035592.html">https://www.vtk.org/pipermail/vtk-developers/2017-November/035592.html</a></li>
+<li><a class="reference external" href="http://vtk.1045678.n5.nabble.com/Offscreen-rendering-problems-on-headless-Ubuntu-td5746035.html">http://vtk.1045678.n5.nabble.com/Offscreen-rendering-problems-on-headless-Ubuntu-td5746035.html</a></li>
+</ul>
+</li>
+<li><p class="first"><a class="reference external" href="https://github.com/enthought/mayavi/issues/652">installer doesn’t find source-compiled VTK</a></p>
+<ul>
+<li><p class="first">solution is to delete ‘vtk’ from <code class="docutils literal"><span class="pre">__requires__</span></code> in the __init__.py file of the <a class="reference external" href="http://docs.enthought.com/mayavi/mayavi/index.html">Mayavi</a> source before installing with <code class="docutils literal"><span class="pre">python</span> <span class="pre">setup.py</span> <span class="pre">install</span></code></p>
+</li>
+<li><p class="first">e.g.:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">clone</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">enthought</span><span class="o">/</span><span class="n">mayavi</span><span class="o">.</span><span class="n">git</span>
+<span class="n">cd</span> <span class="n">mayavi</span> <span class="o">&amp;&amp;</span> <span class="n">git</span> <span class="n">checkout</span> <span class="mf">4.6</span><span class="o">.</span><span class="mi">2</span> <span class="o">&amp;&amp;</span> <span class="n">sed</span> <span class="o">-</span><span class="n">i</span> <span class="s1">&#39;/vtk/d&#39;</span> <span class="n">mayavi</span><span class="o">/</span><span class="fm">__init__</span><span class="o">.</span><span class="n">py</span> <span class="o">&amp;&amp;</span> <span class="n">python</span> <span class="n">setup</span><span class="o">.</span><span class="n">py</span> <span class="n">install</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
 </div>
 
 

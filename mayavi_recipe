@@ -3,12 +3,16 @@ Bootstrap: docker
 From: intelpython/intelpython3_core
 
 %help
-  - run with: singularity run mayavi.simg <script.py>
-  - update only one section (e.g. runscript):
-    sudo singularity build --section runscript mayavi.simg mayavi_recipe
-    otherwise without --section
-  - writable images / sandboxes, --writable commands and build need sudo, execution with run not necessarily
-  - if run with sudo, it mounts host:/root/ to container:/root, if as user, mounts e.g. host:/home/user to container:/home/user, and similarly with $PWD
+  - run with: singularity run mayavi2.simg <script.py> <wrf_file>
+  - <wrf_file> will be put into env variable 'wrf_file' for access from script
+  - more info: https://betaplane.github.io/nubes/
+  - Notes on singularity use:
+    - 2 update only one section in an image (e.g. 'runscript'):
+        sudo singularity build --section runscript mayavi.simg mayavi_recipe
+        otherwise without --section
+    - writable images / sandboxes (anything using the --writable flag) need to be executed / build with sudo
+    - just running the image (e.g. with 'run') doesn't need sudo
+    - if run with sudo, it mounts host:/root/ to container:/root, otherwise it mounts e.g. host:/home/user to container:/home/user, and similarly with $PWD
 
 %post
   echo "deb http://deb.debian.org/debian stretch-backports main contrib non-free" >> /etc/apt/sources.list

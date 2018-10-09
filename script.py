@@ -8,28 +8,19 @@ from pyproj import Proj
 from glob import glob
 from os import remove
 from moviepy.editor import ImageSequenceClip
-from ctypes import CDLL, RTLD_GLOBAL
 
 fps = 6
 outfile = 'mov.mp4'
-
-# see https://github.com/enthought/mayavi/issues/7
-# from tvtk.pyface.ui.qt4 import scene
-# from tvtk.pyface.ui.qt4.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
-
-# class tvtkBug(scene._VTKRenderWindowInteractor):
-#     def paintEvent(self, e):
-#         QVTKRenderWindowInteractor.paintEvent(self, e)
-
-# scene._VTKRenderWindowInteractor = tvtkBug
 
 # VTK bug, see:
 # https://www.vtk.org/pipermail/vtk-developers/2017-November/035592.html
 # and
 # http://vtk.1045678.n5.nabble.com/Offscreen-rendering-problems-on-headless-Ubuntu-td5746035.html
-osm = CDLL('/usr/local/lib/libOSMesa32.so', RTLD_GLOBAL)
-
-mlab.options.offscreen = True
+try:
+    ctypes = import_module('ctypes')
+    osm = ctypes.CDLL('/usr/local/lib/libOSMesa32.so', ctypes.RTLD_GLOBAL)
+    mlab.options.offscreen = True
+except: pass
 
 def create_affine(nc):
     proj = Proj(lon_0=nc.CEN_LON, lat_0=nc.CEN_LAT, lat_1=nc.TRUELAT1, lat_2=nc.TRUELAT2, proj='lcc')
@@ -80,11 +71,12 @@ ly, lx, nt = [nc.dimensions[n].size for n in ['south_north', 'west_east', 'Time'
 tr = lambda x: x.transpose(2, 1, 0)
 z, y, x = np.mgrid[slice(0, top, vspace), :ly, :lx]
 
-vol = None
+# NOTE: rendering the first timestep twice (and writing it to file!!!) seems to get around the issue with the lacking lighting in the first image
+cld = wrf.vinterp(nc, wrf.getvar(nc, 'CLDFRA', timeidx=0), 'ght_msl', iz)
+vol = mlab.pipeline.volume(mlab.pipeline.scalar_field(tr(x), tr(y), tr(z), tr(cld.values)), color=(1, 1, 1), vmin=0, vmax=.7)
+mlab.savefig('scene_000.png'.format(i), size=(1200, 800))
 for i in range(nt):
-    try:
-        vol.remove()
-    except: pass
+    vol.remove()
     cld = wrf.vinterp(nc, wrf.getvar(nc, 'CLDFRA', timeidx=i), 'ght_msl', iz)
     vol = mlab.pipeline.volume(mlab.pipeline.scalar_field(tr(x), tr(y), tr(z), tr(cld.values)), color=(1, 1, 1), vmin=0, vmax=.7)
     mlab.savefig('scene_{:03d}.png'.format(i), size=(1200, 800))
@@ -94,11 +86,3 @@ mov = ImageSequenceClip(g, fps=fps)
 mov.write_videofile(outfile, fps=fps)
 for f in g:
     remove(f)
-
-# make_frame(0)
-# from tvtk.pyface import light_manager
-# vol.scene.light_manager =
-# mov = VideoClip(make_frame, duration=nt / fps)
-# mov.write_videofile('test.mp4', fps=fps)
-# mov.write_gif('test.gif', fps=6)
-# mlab.savefig('test.png', size=(800, 800))

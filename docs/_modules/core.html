@@ -1,0 +1,436 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>core &mdash; Nubes 0.1 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+
+  
+  <script src="../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> Nubes
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.1
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../nubes.html">Cloud visualization with Mayavi</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Nubes</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="index.html">Module code</a> &raquo;</li>
+        
+      <li>core</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for core</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Utility routines</span>
+<span class="sd">================</span>
+
+<span class="sd">.. NOTE::</span>
+<span class="sd">    * Currently projection is hard-coded to &#39;lcc&#39; (could also be read from netcdf file)</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="c1">#!/usr/bin/env python</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">importlib</span> <span class="k">import</span> <span class="n">import_module</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">xarray</span> <span class="k">as</span> <span class="nn">xr</span>
+<span class="kn">from</span> <span class="nn">netCDF4</span> <span class="k">import</span> <span class="n">Dataset</span>
+<span class="kn">from</span> <span class="nn">warnings</span> <span class="k">import</span> <span class="n">catch_warnings</span><span class="p">,</span> <span class="n">simplefilter</span>
+
+<span class="c1"># hack for GDAL framework installation on MacOS</span>
+<span class="c1"># import sys</span>
+<span class="c1"># sys.path.insert(0, &#39;/usr/local/lib/python3.6/site-packages/GDAL-2.1.3-py3.6-macosx-10.12-x86_64.egg/&#39;)</span>
+<span class="c1"># import gdal</span>
+
+
+<div class="viewcode-block" id="Tools"><a class="viewcode-back" href="../nubes.html#core.Tools">[docs]</a><span class="k">class</span> <span class="nc">Tools</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class that holds a few methods to create the static files needed for the visualization::</span>
+
+<span class="sd">        * :meth:`.dem` - to produce a DEM cropped (and optionally decimated) to the region corresponding to a WRF domain</span>
+<span class="sd">        * :meth:`.image` - to produce an image (currently, a `Blue Marble`_ image) cropped to the WRF domain which is used as a texture for the DEM</span>
+
+<span class="sd">    :param wrf_file: name of the WRF output netCDF4_ file (``wrfout_...``) from which to take the (cloud) data (will be accessible as :attr:`.nc`)</span>
+<span class="sd">    :type wrf_file: :obj:`str`</span>
+
+<span class="sd">    .. attribute:: nc</span>
+
+<span class="sd">        input netCDF4_ WRF file containing the variables (e.g. ``CLDFRA``) to be visualized.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wrf_file</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nc</span> <span class="o">=</span> <span class="n">Dataset</span><span class="p">(</span><span class="n">wrf_file</span><span class="p">)</span>
+        <span class="n">X</span><span class="p">,</span> <span class="n">Y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nc</span><span class="p">[</span><span class="s1">&#39;XLONG&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">,</span> <span class="p">:</span> <span class="p">,:],</span> <span class="bp">self</span><span class="o">.</span><span class="n">nc</span><span class="p">[</span><span class="s1">&#39;XLAT&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">affine</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_affine</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">Y</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">xbnds</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">X</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ybnds</span> <span class="o">=</span> <span class="n">Y</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="n">Y</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">nc</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">except</span><span class="p">:</span> <span class="k">pass</span>
+
+<div class="viewcode-block" id="Tools.proj"><a class="viewcode-back" href="../nubes.html#core.Tools.proj">[docs]</a>    <span class="k">def</span> <span class="nf">proj</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return projection parameters for the ``wrfout_...`` file (:attr:.nc).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">pyproj</span> <span class="o">=</span> <span class="n">import_module</span><span class="p">(</span><span class="s1">&#39;pyproj&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">pyproj</span><span class="o">.</span><span class="n">Proj</span><span class="p">(</span>
+            <span class="n">lon_0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nc</span><span class="o">.</span><span class="n">CEN_LON</span><span class="p">,</span>
+            <span class="n">lat_0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nc</span><span class="o">.</span><span class="n">CEN_LAT</span><span class="p">,</span>
+            <span class="n">lat_1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nc</span><span class="o">.</span><span class="n">TRUELAT1</span><span class="p">,</span>
+            <span class="n">lat_2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nc</span><span class="o">.</span><span class="n">TRUELAT2</span><span class="p">,</span>
+            <span class="n">proj</span> <span class="o">=</span> <span class="s1">&#39;lcc&#39;</span>
+        <span class="p">)</span></div>
+
+<div class="viewcode-block" id="Tools.create_affine"><a class="viewcode-back" href="../nubes.html#core.Tools.create_affine">[docs]</a>    <span class="k">def</span> <span class="nf">create_affine</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return a function that maps the geographical coordinates (latitude and longitude) of input data (e.g. the ``wrfout_...`` file or the input DEM) to a Cartesian grid spanned by integer index vectors (e.g. as returned by a call to :meth:`numpy.mgrid`). The returnd function is to be called as ``func(x, y)`` where ``x`` and ``y`` correspond to :class:`arrays &lt;numpy.ndarray&gt;` of longitudes and latitudes.</span>
+
+<span class="sd">        :param x: array of longitudes</span>
+<span class="sd">        :type x: :class:`~numpy.ndarray`</span>
+<span class="sd">        :param y: array of latitudes</span>
+<span class="sd">        :type y: :class:`~numpy.ndarray`</span>
+<span class="sd">        :returns: function that performs an affine mapping from geographic to integer-gridded coordinates</span>
+<span class="sd">        :rtype: :obj:`callable`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">proj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">proj</span><span class="p">()</span>
+        <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">proj</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+        <span class="n">m</span><span class="p">,</span> <span class="n">n</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span>
+        <span class="n">j</span><span class="p">,</span> <span class="n">i</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mgrid</span><span class="p">[:</span><span class="n">m</span><span class="p">,</span> <span class="p">:</span><span class="n">n</span><span class="p">]</span>
+
+        <span class="n">C</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">lstsq</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[[</span><span class="n">x</span><span class="o">.</span><span class="n">flatten</span><span class="p">()],</span> <span class="p">[</span><span class="n">y</span><span class="o">.</span><span class="n">flatten</span><span class="p">()],</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="n">m</span> <span class="o">*</span> <span class="n">n</span><span class="p">))]</span><span class="o">.</span><span class="n">T</span><span class="p">,</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[[</span><span class="n">i</span><span class="o">.</span><span class="n">flatten</span><span class="p">()],</span> <span class="p">[</span><span class="n">j</span><span class="o">.</span><span class="n">flatten</span><span class="p">()],</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="n">m</span> <span class="o">*</span> <span class="n">n</span><span class="p">))]</span><span class="o">.</span><span class="n">T</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="n">C</span><span class="p">[:</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+        <span class="n">A</span> <span class="o">=</span> <span class="n">C</span><span class="p">[:</span><span class="mi">2</span><span class="p">,</span> <span class="p">:</span><span class="mi">2</span><span class="p">]</span>
+
+        <span class="k">def</span> <span class="nf">to_grid</span><span class="p">(</span><span class="n">lon</span><span class="p">,</span> <span class="n">lat</span><span class="p">):</span>
+            <span class="n">lon</span><span class="p">,</span> <span class="n">lat</span> <span class="o">=</span> <span class="n">proj</span><span class="p">(</span><span class="n">lon</span><span class="p">,</span> <span class="n">lat</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">A</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">lon</span><span class="o">.</span><span class="n">flatten</span><span class="p">(),</span> <span class="n">lat</span><span class="o">.</span><span class="n">flatten</span><span class="p">())))</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[[</span><span class="n">b</span><span class="p">]]</span><span class="o">.</span><span class="n">T</span>
+
+        <span class="k">return</span> <span class="n">to_grid</span></div>
+
+<div class="viewcode-block" id="Tools.dem"><a class="viewcode-back" href="../nubes.html#core.Tools.dem">[docs]</a>    <span class="k">def</span> <span class="nf">dem</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_path</span><span class="p">,</span> <span class="n">decimate</span><span class="o">=</span><span class="mi">12</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return a netCDF4_ file containing a DEM cropped to the region corresponding to the input netCDF4_ WRF file (argument ``wrf_file`` to :class:`Tools` and :attr:`.nc`), and optionally downsampled.</span>
+
+<span class="sd">        :param file_path: path to the input DEM file (in geotiff format, e.g. from the SRTM_)</span>
+<span class="sd">        :param decimate: decimation factor for the resulting DEM (e.g. if ``12``, the resulting resolution is 1/12th of the original)</span>
+<span class="sd">        :returns: cropped and optionally decimated DEM, with elevation as variable ``z`` and the affine-mapped coordinates (see :meth:`.create_affine` in variables ``x`` and ``y``, respectively)</span>
+<span class="sd">        :rtype: :class:`xarray.DataArray`</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">gdal</span> <span class="o">=</span> <span class="n">import_module</span><span class="p">(</span><span class="s1">&#39;gdal&#39;</span><span class="p">)</span>
+        <span class="n">ds</span> <span class="o">=</span> <span class="n">gdal</span><span class="o">.</span><span class="n">Open</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+        <span class="n">g</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">GetGeoTransform</span><span class="p">()</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">GetRasterBand</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="n">b</span><span class="o">.</span><span class="n">ReadAsArray</span><span class="p">()</span>
+
+        <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">g</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">g</span><span class="p">[</span><span class="mi">5</span><span class="p">],</span> <span class="n">z</span>
+        <span class="k">if</span> <span class="n">decimate</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">sig</span> <span class="o">=</span> <span class="n">import_module</span><span class="p">(</span><span class="s1">&#39;scipy.signal&#39;</span><span class="p">)</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">sig</span><span class="o">.</span><span class="n">decimate</span><span class="p">(</span><span class="n">sig</span><span class="o">.</span><span class="n">decimate</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">decimate</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span> <span class="n">decimate</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">dx</span> <span class="o">=</span> <span class="p">(</span><span class="n">g</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">z</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">/</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">dy</span> <span class="o">=</span> <span class="p">(</span><span class="n">g</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="o">*</span> <span class="n">z</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="n">Z</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">coords</span><span class="o">=</span><span class="p">[</span>
+            <span class="p">(</span><span class="s1">&#39;lat&#39;</span><span class="p">,</span> <span class="n">g</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">+</span> <span class="n">dy</span> <span class="o">*</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">+</span> <span class="o">.</span><span class="mi">5</span><span class="p">)),</span>
+            <span class="p">(</span><span class="s1">&#39;lon&#39;</span><span class="p">,</span> <span class="n">g</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">dx</span> <span class="o">*</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">+</span> <span class="o">.</span><span class="mi">5</span><span class="p">))</span>
+        <span class="p">])</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span><span class="n">lon</span><span class="o">=</span><span class="nb">slice</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">xbnds</span><span class="p">),</span> <span class="n">lat</span><span class="o">=</span><span class="nb">slice</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">ybnds</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">project_xarray</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">project_xarray</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">Z</span><span class="p">):</span>
+        <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">affine</span><span class="p">(</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">Z</span><span class="o">.</span><span class="n">lon</span><span class="p">,</span> <span class="n">Z</span><span class="o">.</span><span class="n">lat</span><span class="p">))</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">y</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">nc</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="s1">&#39;south_north&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">size</span>
+        <span class="k">return</span> <span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">({</span>
+            <span class="s1">&#39;z&#39;</span><span class="p">:</span> <span class="n">Z</span><span class="p">,</span>
+            <span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="p">((</span><span class="s1">&#39;lat&#39;</span><span class="p">,</span> <span class="s1">&#39;lon&#39;</span><span class="p">),</span> <span class="n">x</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">Z</span><span class="o">.</span><span class="n">shape</span><span class="p">)),</span>
+            <span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="p">((</span><span class="s1">&#39;lat&#39;</span><span class="p">,</span> <span class="s1">&#39;lon&#39;</span><span class="p">),</span> <span class="n">y</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">Z</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
+        <span class="p">})</span>
+
+<div class="viewcode-block" id="Tools.image"><a class="viewcode-back" href="../nubes.html#core.Tools.image">[docs]</a>    <span class="k">def</span> <span class="nf">image</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return an image cropped to the region corresponding to the input netCDF4_ WRF file (argument ``wrf_file`` to :class:`Tools` and :attr:`.nc`). This function currently assumes that the image is a `Blue Marble`_ region ``B2`` image - this is important because these images are not geotiffs and I map the pixel coordinates based on the boundary of the ``B2`` region.</span>
+
+<span class="sd">        :param file_path: file path to the original image</span>
+<span class="sd">        :returns: cropped image</span>
+<span class="sd">        :rtype: :class:`PIL.Image.Image`</span>
+
+<span class="sd">        .. NOTE::</span>
+
+<span class="sd">            The image needs, potentially, to be rotated and flipped (90 deg CCW and flipped horizontally) before applying it as texture.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">Image</span> <span class="o">=</span> <span class="n">import_module</span><span class="p">(</span><span class="s1">&#39;PIL.Image&#39;</span><span class="p">)</span>
+        <span class="n">Image</span><span class="o">.</span><span class="n">MAX_IMAGE_PIXELS</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">im</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">im_path</span><span class="p">)</span>
+        <span class="c1"># blue marble next gen is 1/4th of an arc minute (1/dx = 240)</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">xbnds</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ybnds</span><span class="p">))</span><span class="o">.</span><span class="n">T</span> <span class="o">*</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="mi">90</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span> <span class="o">*</span> <span class="mi">240</span>
+        <span class="k">return</span> <span class="n">im</span><span class="o">.</span><span class="n">crop</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">i</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:]),</span> <span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">i</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]))))</span></div></div>
+
+
+<div class="viewcode-block" id="Visualize"><a class="viewcode-back" href="../nubes.html#core.Visualize">[docs]</a><span class="k">class</span> <span class="nc">Visualize</span><span class="p">(</span><span class="n">Tools</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class that sets up an interactive Mayavi_ visualization - at this points of clouds, using volume rendering.</span>
+
+<span class="sd">    Usage::</span>
+
+<span class="sd">        v = Visualize(&lt;wrfout_file&gt;)</span>
+<span class="sd">        v.anim()</span>
+<span class="sd">        v.show()</span>
+
+<span class="sd">    :param wrf_file: path to a WRF output netCDF4_ file whose data is to be visualized</span>
+<span class="sd">    :param var_name: name of the variable to be visualized as a volume density (e.g. ``CLDFRA``)</span>
+<span class="sd">    :param dem_file: path to a DEM in netCDF4_ format which represents the terrain, as produced by :meth:`.dem`</span>
+<span class="sd">    :param image_file: path to an image file which is used as texture on the rendered DEM.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wrf_file</span><span class="p">,</span> <span class="n">var_name</span><span class="o">=</span><span class="s1">&#39;CLDFRA&#39;</span><span class="p">,</span> <span class="n">dem_file</span><span class="o">=</span><span class="s1">&#39;dem_d03_12.nc&#39;</span><span class="p">,</span> <span class="n">image_file</span><span class="o">=</span><span class="s1">&#39;marble_d03_rot.jpg&#39;</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">wrf_file</span><span class="p">)</span>
+        <span class="n">tvtk</span> <span class="o">=</span> <span class="n">import_module</span><span class="p">(</span><span class="s1">&#39;tvtk.api&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mlab</span> <span class="o">=</span> <span class="n">import_module</span><span class="p">(</span><span class="s1">&#39;mayavi.mlab&#39;</span><span class="p">)</span>
+
+        <span class="n">ds</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_dataset</span><span class="p">(</span><span class="n">dem_file</span><span class="p">)</span>
+
+        <span class="c1"># here I &#39;fill&#39; the DEM westward with zeros (over the ocean)</span>
+        <span class="n">dx</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">lon</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="s1">&#39;lon&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">lon</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">xbnds</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="o">-</span><span class="n">dx</span><span class="p">)[:</span><span class="mi">0</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">Z</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">z</span><span class="p">,</span> <span class="p">[(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="mi">0</span><span class="p">)],</span> <span class="s1">&#39;constant&#39;</span><span class="p">),</span>
+                         <span class="n">coords</span> <span class="o">=</span> <span class="p">[(</span><span class="s1">&#39;lat&#39;</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">lat</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;lon&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">lon</span><span class="p">])])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">z</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">project_xarray</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span>
+
+        <span class="c1"># get the texture from image (extensions either &#39;jpg&#39; or &#39;png&#39;)</span>
+        <span class="n">reader</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;.jpg&#39;</span><span class="p">:</span> <span class="n">tvtk</span><span class="o">.</span><span class="n">tvtk</span><span class="o">.</span><span class="n">JPEGReader</span><span class="p">,</span> <span class="s1">&#39;.png&#39;</span><span class="p">:</span> <span class="n">tvtk</span><span class="o">.</span><span class="n">tvtk</span><span class="o">.</span><span class="n">PNGReader</span><span class="p">}[</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">image_file</span><span class="p">)[</span><span class="mi">1</span><span class="p">]]</span>
+        <span class="n">im</span> <span class="o">=</span> <span class="n">reader</span><span class="p">(</span><span class="n">file_name</span> <span class="o">=</span> <span class="n">image_file</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tex</span> <span class="o">=</span> <span class="n">tvtk</span><span class="o">.</span><span class="n">tvtk</span><span class="o">.</span><span class="n">Texture</span><span class="p">(</span><span class="n">input_connection</span> <span class="o">=</span> <span class="n">im</span><span class="o">.</span><span class="n">output_port</span><span class="p">,</span> <span class="n">interpolate</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">fig</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mlab</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">800</span><span class="p">,</span> <span class="mi">800</span><span class="p">))</span>
+
+        <span class="c1"># surf = self.mlab.surf(self.z.x.T, self.z.y.T, self.z.z.values.T/1000, colormap=&#39;gist_earth&#39;)</span>
+        <span class="n">surf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mlab</span><span class="o">.</span><span class="n">surf</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="o">.</span><span class="n">y</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="o">.</span><span class="n">z</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">T</span><span class="o">/</span><span class="mi">1000</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="n">surf</span><span class="o">.</span><span class="n">actor</span><span class="o">.</span><span class="n">enable_texture</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">surf</span><span class="o">.</span><span class="n">actor</span><span class="o">.</span><span class="n">tcoord_generator_mode</span> <span class="o">=</span> <span class="s1">&#39;plane&#39;</span>
+        <span class="n">surf</span><span class="o">.</span><span class="n">actor</span><span class="o">.</span><span class="n">actor</span><span class="o">.</span><span class="n">texture</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tex</span>
+
+        <span class="c1"># self.mlab.view(-110, 80, 115, [50, 60, 1])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mlab</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="o">-</span><span class="mi">120</span><span class="p">,</span> <span class="mi">65</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="p">[</span><span class="mi">40</span><span class="p">,</span> <span class="mi">66</span><span class="p">,</span> <span class="o">-</span><span class="mi">6</span><span class="p">])</span>
+
+        <span class="n">ly</span><span class="p">,</span> <span class="n">lx</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nt</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">nc</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="n">n</span><span class="p">]</span><span class="o">.</span><span class="n">size</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;south_north&#39;</span><span class="p">,</span> <span class="s1">&#39;west_east&#39;</span><span class="p">,</span> <span class="s1">&#39;Time&#39;</span><span class="p">]]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">xyz</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">mgrid</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">10</span><span class="p">:</span><span class="mf">0.05</span><span class="p">,</span> <span class="p">:</span><span class="n">ly</span><span class="p">,</span> <span class="p">:</span><span class="n">lx</span><span class="p">]][::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vol</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="nd">@self</span><span class="o">.</span><span class="n">mlab</span><span class="o">.</span><span class="n">animate</span>
+        <span class="k">def</span> <span class="nf">anim</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nt</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">anim_func</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">var_name</span><span class="p">)</span>
+                <span class="k">yield</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">anim</span> <span class="o">=</span> <span class="n">anim</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">show</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mlab</span><span class="o">.</span><span class="n">show</span>
+
+    <span class="k">def</span> <span class="nf">anim_func</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">var_name</span><span class="p">):</span>
+        <span class="n">wrf</span> <span class="o">=</span> <span class="n">import_module</span><span class="p">(</span><span class="s1">&#39;wrf&#39;</span><span class="p">)</span>
+        <span class="n">iz</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="o">.</span><span class="mi">05</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">vol</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">vol</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+        <span class="n">cld</span> <span class="o">=</span> <span class="n">wrf</span><span class="o">.</span><span class="n">vinterp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nc</span><span class="p">,</span> <span class="n">wrf</span><span class="o">.</span><span class="n">getvar</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nc</span><span class="p">,</span> <span class="n">var_name</span><span class="p">,</span> <span class="n">timeidx</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">i</span><span class="p">)),</span> <span class="s1">&#39;ght_msl&#39;</span><span class="p">,</span> <span class="n">iz</span><span class="p">)</span>
+        <span class="n">xyzc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">xyz</span> <span class="o">+</span> <span class="p">[</span><span class="n">cld</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vol</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mlab</span><span class="o">.</span><span class="n">pipeline</span><span class="o">.</span><span class="n">volume</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mlab</span><span class="o">.</span><span class="n">pipeline</span><span class="o">.</span><span class="n">scalar_field</span><span class="p">(</span><span class="o">*</span><span class="n">xyzc</span><span class="p">),</span> <span class="n">color</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">figure</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">fig</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Visualize.write_movie"><a class="viewcode-back" href="../nubes.html#core.Visualize.write_movie">[docs]</a>    <span class="k">def</span> <span class="nf">write_movie</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">var_name</span><span class="o">=</span><span class="s1">&#39;CLDFRA&#39;</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="s1">&#39;mov.mp4&#39;</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">6</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Write a movie file to disk, based on the interactive animation set up by this class.</span>
+
+<span class="sd">        :param var_name: name of the variable to be visualized as a volume density (e.g. ``CLDFRA``)</span>
+<span class="sd">        :param file_name: path to the output (movie) file to be produced</span>
+<span class="sd">        :param fps: frames per second</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">def</span> <span class="nf">anim</span><span class="p">(</span><span class="n">i</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">anim_func</span><span class="p">(</span><span class="n">i</span> <span class="o">*</span> <span class="n">fps</span><span class="p">,</span> <span class="n">var_name</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">mlab</span><span class="o">.</span><span class="n">screenshot</span><span class="p">(</span><span class="n">antialiased</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">mp</span> <span class="o">=</span> <span class="n">import_module</span><span class="p">(</span><span class="s1">&#39;moviepy.editor&#39;</span><span class="p">)</span>
+        <span class="n">vc</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">VideoClip</span><span class="p">(</span><span class="n">anim</span><span class="p">,</span> <span class="n">duration</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nt</span> <span class="o">/</span> <span class="n">fps</span><span class="p">)</span>
+        <span class="n">writer</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;.mp4&#39;</span><span class="p">:</span> <span class="s1">&#39;write_videofile&#39;</span><span class="p">,</span> <span class="s1">&#39;.gif&#39;</span><span class="p">:</span> <span class="s1">&#39;write_gif&#39;</span><span class="p">}[</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">file_name</span><span class="p">)[</span><span class="mi">1</span><span class="p">]]</span>
+        <span class="nb">getattr</span><span class="p">(</span><span class="n">vc</span><span class="p">,</span> <span class="n">writer</span><span class="p">)(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="n">fps</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2018, Arno C. Hammann
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    
+    
+      <script type="text/javascript">
+          var DOCUMENTATION_OPTIONS = {
+              URL_ROOT:'../',
+              VERSION:'0.1',
+              LANGUAGE:'None',
+              COLLAPSE_INDEX:false,
+              FILE_SUFFIX:'.html',
+              HAS_SOURCE:  true,
+              SOURCELINK_SUFFIX: '.txt'
+          };
+      </script>
+        <script type="text/javascript" src="../_static/jquery.js"></script>
+        <script type="text/javascript" src="../_static/underscore.js"></script>
+        <script type="text/javascript" src="../_static/doctools.js"></script>
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    
+
+  
+
+  <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
