@@ -21,7 +21,7 @@ from warnings import catch_warnings, simplefilter
 
 
 class Tools(object):
-    """Class that holds a few methods to create the static files needed for the visualization::
+    """Class that holds a few methods to create the static files needed for the visualization:
 
         * :meth:`.dem` - to produce a DEM cropped (and optionally decimated) to the region corresponding to a WRF domain
         * :meth:`.image` - to produce an image (currently, a `Blue Marble`_ image) cropped to the WRF domain which is used as a texture for the DEM
