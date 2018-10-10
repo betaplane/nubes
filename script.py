@@ -6,21 +6,29 @@ from mayavi import mlab
 from tvtk.api import tvtk
 from pyproj import Proj
 from glob import glob
-from os import remove
+from os import remove, environ
 from moviepy.editor import ImageSequenceClip
+from ctypes import CDLL, RTLD_GLOBAL
 
-fps = 6
-outfile = 'mov.mp4'
+fps = 6                                     # frames per second of the produced movie
+movie_file = '/assets/mov.mp4'              # path to the file in which to save the produced movie
+dem_file = '/assets/dem_d03_12.nc'          # path to static DEM file (in netcdf format)
+image_file = '/assets/marble_d03_rot.jpg'   # path to texture image
 
-# VTK bug, see:
+intermediate_images = '/assets/scene'       # base name for the generated images (will be deleted after
+                                            # movie has been generated)
+
+# vertical resolution of volume rendering
+top = 15                                    # upper boundary in km
+vspace = 0.05                               # vertical resolution in km
+
+# VTK bug affecting OFFSCREEN RENDERING, see:
 # https://www.vtk.org/pipermail/vtk-developers/2017-November/035592.html
 # and
 # http://vtk.1045678.n5.nabble.com/Offscreen-rendering-problems-on-headless-Ubuntu-td5746035.html
-try:
-    ctypes = import_module('ctypes')
-    osm = ctypes.CDLL('/usr/local/lib/libOSMesa32.so', ctypes.RTLD_GLOBAL)
-    mlab.options.offscreen = True
-except: pass
+# uncomment if used on-screen
+osm = CDLL('/usr/local/lib/libOSMesa32.so', RTLD_GLOBAL)
+mlab.options.offscreen = True
 
 def create_affine(nc):
     proj = Proj(lon_0=nc.CEN_LON, lat_0=nc.CEN_LAT, lat_1=nc.TRUELAT1, lat_2=nc.TRUELAT2, proj='lcc')
@@ -40,8 +48,8 @@ def create_affine(nc):
 
     return to_grid
 
-ds = xr.open_dataset('dem_d03_12.nc')
-nc = Dataset('wrfout_d03_2016-05-11_12:00:00')
+ds = xr.open_dataset(dem_file)
+nc = Dataset(environ['wrf_file'])
 
 # here I 'fill' the DEM westward with zeros (over the ocean)
 dx = ds.lon.diff('lon').mean().item()
@@ -54,7 +62,7 @@ x, y = affine(*np.meshgrid(Z.lon, Z.lat))
 y = y + nc.dimensions['south_north'].size
 x, y = [v.reshape(Z.shape) for v in [x, y]]
 
-im = tvtk.JPEGReader(file_name='marble_d03_rot.jpg')
+im = tvtk.JPEGReader(file_name=image_file)
 tex = tvtk.Texture(input_connection=im.output_port, interpolate=1)
 
 surf = mlab.surf(x.T, y.T, Z.values.T/1000, color=(1, 1, 1))
@@ -64,8 +72,6 @@ surf.actor.actor.texture = tex
 
 mlab.view(-120, 60, 200, [55, 55, -9])
 
-top = 15
-vspace = 0.05
 iz = np.arange(0, top, vspace)
 ly, lx, nt = [nc.dimensions[n].size for n in ['south_north', 'west_east', 'Time']]
 tr = lambda x: x.transpose(2, 1, 0)
@@ -74,7 +80,7 @@ z, y, x = np.mgrid[slice(0, top, vspace), :ly, :lx]
 # NOTE: rendering the first timestep twice (and writing it to file!!!) seems to get around the issue with the lacking lighting in the first image
 cld = wrf.vinterp(nc, wrf.getvar(nc, 'CLDFRA', timeidx=0), 'ght_msl', iz)
 vol = mlab.pipeline.volume(mlab.pipeline.scalar_field(tr(x), tr(y), tr(z), tr(cld.values)), color=(1, 1, 1), vmin=0, vmax=.7)
-mlab.savefig('scene_000.png'.format(i), size=(1200, 800))
+mlab.savefig('{}_{}.png'.format(intermediate_images, i), size=(1200, 800))
 for i in range(nt):
     vol.remove()
     cld = wrf.vinterp(nc, wrf.getvar(nc, 'CLDFRA', timeidx=i), 'ght_msl', iz)
@@ -83,6 +89,6 @@ for i in range(nt):
 
 g = sorted(glob('scene_*png'))
 mov = ImageSequenceClip(g, fps=fps)
-mov.write_videofile(outfile, fps=fps)
+mov.write_videofile(movie_file, fps=fps)
 for f in g:
     remove(f)

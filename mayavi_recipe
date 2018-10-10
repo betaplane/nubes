@@ -34,16 +34,23 @@ From: intelpython/intelpython3_core
   cmake -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release -DVTK_OPENGL_HAS_OSMESA=ON -DVTK_PYTHON_VERSION=3 -DVTK_WRAP_PYTHON=ON -DVTK_USE_X=OFF -DVTK_USE_SYSTEM_HDF5=ON -DVTK_USE_SYSTEM_LIBPROJ4=ON -DVTK_USE_SYSTEM_NETCDF=ON -DVTK_INSTALL_PYTHON_MODULE_DIR=/opt/conda/envs/mayavi/lib/python3.6/site-packages/ -DLIBPROJ4_INCLUDE_DIR=/usr/include/ -DLIBPROJ4_LIBRARIES=/usr/lib/x86_64-linux-gnu/libproj.so -DVTK_DEFAULT_RENDER_WINDOW_OFFSCREEN=ON ../VTK-8.1.1
 
   cd && wget https://github.com/Unidata/netcdf4-python/archive/v1.4.1rel.tar.gz
-  tar -xf v1.4.1rel.tar.gz && cd v1.4.1rel && python setup.py install
+  tar -xf v1.4.1rel.tar.gz && cd netcdf4-python-1.4.1rel && python setup.py install
 
   cd && wget https://github.com/jswhit/pyproj/archive/v1.9.5.1rel.tar.gz
-  tar -xf v1.9.5.1rel.tar.gz && cd v1.9.5.1rel && python setup.py install
+  tar -xf v1.9.5.1rel.tar.gz && cd pyproj-1.9.5.1rel && python setup.py install
   
   cd && git clone https://github.com/enthought/mayavi.git
   cd mayavi && git checkout 4.6.2 && sed -i '/vtk/d' mayavi/__init__.py && python setup.py install
 
-  conda install -c conda-forge requests wrf-python moviepy --yes
-  python -c "from moviepy.editor import VideoClip"
+  cd && wget https://github.com/imageio/imageio-binaries/raw/master/ffmpeg/ffmpeg-linux64-v3.3.1
+  mv ffmpeg-linux64-v3.3.1 /usr/local/bin && export FFMPEG_BINARY=/usr/local/bin/ffmpeg-linux64-v3.3.1
+  chmod a+x /usr/local/bin/ffmpeg-linux64-v3.3.1
+  cd && wget https://github.com/Zulko/moviepy/archive/v0.2.3.5.tar.gz
+  tar -xf v0.2.3.5.tar.gz && cd moviepy-0.2.3.5/
+  export FFMPEG_BINARY=/usr/bin/ffmpeg-linux64-v3.3.1 && python setup.py install
+
+  conda install -c conda-forge requests wrf-python --yes
+  
 
 %environment
   export LD_LIBRARY_PATH=/usr/local/lib

@@ -10,16 +10,24 @@ where ``<input_wrfout_file>`` is to be replaced by the WRF output file on which 
 
 For portability and completely **offcreen** rendering, I have created a Singularity_ image which can be used in the following way - assuming, of course, that Singularity_ is installed::
 
-  singularity run mayavi2.img script.py <input_wrfout_file>
+  singularity run mayavi.simg script.py <input_wrfout_file>
 
-with ``<input_wrfout_file>`` to be replaced as above.
+with ``<input_wrfout_file>`` to be replaced as above. 
 
 .. Warning::
-   The file specified as ``<input_wrfout_file>`` (as well as ``script.py``) has to be `reachable from within the singularity container <https://www.sylabs.io/guides/2.6/user-guide/quick_start.html#working-with-files>`_. In the case of ``script.py``, this is going to be the case if Singularity_ is run wihtout ``sudo`` and it lives somewhere in the user directory tree.
+   The file specified as ``<input_wrfout_file>`` (as well as ``script.py``) has to be `reachable from within the singularity container <https://www.sylabs.io/guides/2.6/user-guide/quick_start.html#working-with-files>`_. Since the common use case of Singularity_ appears to be to *build* an image with ``sudo`` (also, install Singularity itself), but to *run* it as regular user, the directory trees mounted automatically differ for building the image vs. running - the user directory (``/root`` in the case of using ``sudo``) is among the automounted directories.
+
+   A full example command line evocation taking this into account would be::
+
+     singularity run --bind <assets-folder>:/assets --bind <data-folder>:/data mayavi.simg /assets/script.py /data/<wrfout_file>
+
+   This binds both an ``/assets`` and a ``/data`` folder inside the Singularity image, and the ``script.py`` file, along with the DEM and texture image, are assumed to be located in the directory bount to ``/assets`` via the ``--bind`` argument. The paths given at the top of the ``script.py`` file (variables ``movie_file``, ``dem_file``,  ``image_file``) need to be adjusted to reflect the mount points (e.g. ``/assets`` in the example).
+
+   Furthermore, the logging directory ``~/.enthought/mayavi_e3`` needs to exist.
 
 .. Note::
 
-   I have currently two Singularity_ images, ``mayavi.img`` and ``mayavi2.img`` (both squashed), where the second one contains all the additional sections (runscript, environment, help) and the first the actual OS and installations.
+   The Singularity_ recipe is included in the git repo for this module as ``mayavi_recipe``.
 
    Inside the image, which is based on the intelpython/intelpython3_core docker image, there is a Conda_ environment called ``mayavi`` that contains all the necessary python modules.
 
